@@ -19,14 +19,18 @@
 (PRINT (COUNTER 3 '(1 2 3 3 3 4)))
 
 (DEFUN DOT-PRODUCT (A B)
-  (REDUCE #'+
-    (MAPCAR #'* A B)))
+  (REDUCE #'+ (MAPCAR #'* A B)))
 
 (PRINT (DOT-PRODUCT '(1 2) '(3 4)))
 
 (DEFUN CARTESIAN-PRODUCT (A B)
-  (MAPCAR
+  (MAPCAN
     (LAMBDA (ITEM-FROM-A)
-      (MAPCAR (LAMBDA (ITEM-FROM-B) (LIST ITEM-FROM-A ITEM-FROM-B)) B)) A))
+      (MAPCAR
+        (LAMBDA (ITEM-FROM-B)
+          (LIST ITEM-FROM-A ITEM-FROM-B))
+        B))
+    A))
 
 (PRINT (CARTESIAN-PRODUCT '(A B C) '(1 2 3 4)))
+
