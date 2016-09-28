@@ -17,6 +17,10 @@
     (T (+ 0 (COUNTER ATOM (REST LIST))))))
 
 (PRINT (COUNTER 3 '(1 2 3 3 3 4)))
+(PRINT (COUNTER NIL '()))
+(PRINT (COUNTER NIL '(1 2 3 () NIL (()))))
+(PRINT (COUNTER '(NIL T) '(1 2 3 (()))))
+(PRINT (COUNTER AAA AAA)
 
 (DEFUN DOT-PRODUCT (A B)
   (REDUCE #'+ (MAPCAR #'* A B)))
@@ -34,3 +38,7 @@
 
 (PRINT (CARTESIAN-PRODUCT '(A B C) '(1 2 3 4)))
 
+(load "lib/searchengine.lisp")
+(load "lib/water-jug-2.lisp")
+
+(PRINT (BREADTH-FIRST-SEARCH *water-jug-2*))
