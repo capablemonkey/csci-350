@@ -13,15 +13,19 @@
 (PRINT (ALL-FUNS (ALL-FUNS '(1 2 3 NIL))))
 
 (DEFUN COUNTER (TARGET LIST)
-  (IF (OR (NOT (LISTP LIST)) (NOT (ATOM TARGET)))
-    (RETURN-FROM COUNTER (PRINT "ARGUMENT ERROR: EXPECTED AN ATOM AND A LIST")))
-
   (COND
+    ((OR (NOT (LISTP LIST)) (NOT (ATOM TARGET)))
+      (PRINT "ARGUMENT ERROR: EXPECTED AN ATOM AND A LIST")
+      0)
     ((ENDP LIST) 0)
+    ((LISTP (FIRST LIST)) (+ (COUNTER TARGET (FIRST LIST)) (COUNTER TARGET (REST LIST))))
     ((EQUAL TARGET (FIRST LIST)) (+ 1 (COUNTER TARGET (REST LIST))))
     (T (+ 0 (COUNTER TARGET (REST LIST))))))
 
 (PRINT "=== COUNTER ===")
+(PRINT (COUNTER 'foo '(foo (bar (foo) (baz foo)) foo)))
+(PRINT (COUNTER 'bar '(foo (bar (foo) (baz foo)) foo)))
+(PRINT (COUNTER 'baz '(foo (bar (foo) (baz foo)) foo)))
 (PRINT (COUNTER 3 '(1 2 3 3 3 4)))
 (PRINT (COUNTER NIL '()))
 (PRINT (COUNTER T '(1 2 3 () NIL (()))))
