@@ -9,7 +9,7 @@
 
 ;selects n distinct random elements from list)
 (defun choose-n-random (n list)
-  (if (> n (length list)) 
+  (if (> n (length list))
       (print 'error)
       (loop for i from 1 to n
 	 for choices = (copy-list list) then (set-difference choices (list chosen))
@@ -65,7 +65,7 @@
 ;guesses is how many guesses so far
 ;game-cutoff is the number of guesses permitted
 ;tournament-cutoff is the number of games in a tournament
-(Mastermind;note default values for all slots 
+
 (defclass game ()
   ((board :initarg :board :initform 0 :accessor board :documentation "number of pegs")
    (colors :initarg :colors :initform '(A B C D E F G H I J K L M N O P Q R S TT U V W X Y Z) :accessor colors :documentation "list of possible colors")
@@ -153,12 +153,11 @@
      for response = (respond-to-guess self guess i)
      for win = (equal (first response) 'win)
      for time-is-up = (> (get-internal-run-time) stop-time)
-     ;do (print (list (get-internal-run-time) stop-time))
-     ;when win
-     ;do (format t "~%Win. Round over.")
-     ;else when response
-     ;do (format t "~%score ~a" response)
-(scsa-sampler 100 my     ;else do (format t "~%Invalid entry. Round over.")
+     do (print (list (get-internal-run-time) stop-time))
+     when win
+     do (format t "~%Win. Round over.")
+     else when response
+     do (format t "~%score ~a" response)
      until (or win (null response) (= i game-cutoff) time-is-up)
      finally (return (cond (time-is-up '(0 0)) 
 			   ((null response) nil)
@@ -195,7 +194,7 @@
 ;you get 5 points for a full win and -2 for every round that ended in an invalid guess
 (defun scoring-function (list)
   (+ (* 5 (first list)) (* -2 (third list))))
-       
+
 ;;;*******************************************************************************************
 ;;Sample SCSAs
 ;;;*******************************************************************************************
@@ -287,3 +286,6 @@
 (defun Boring (board colors SCSA last-response)
   (declare (ignore SCSA last-response))
     (make-list board :initial-element (random-chooser colors)))
+
+(Mastermind 5 8 'only-once)
+(play-tournament *Mastermind* 'RandomFolks 'two-color-alternating 1)
