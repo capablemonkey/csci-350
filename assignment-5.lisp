@@ -74,11 +74,15 @@
       (> (m-right self) 0)) NIL)
     (T T)))
 
+(defmethod new-valid-state-or-nil ((self island-state) operator)
+  (let ((new (copy self)))
+    (funcall operator new)
+    (when (is-valid-state new) new)))
+
 (defmethod move-2c-left ((self island-state))
-  (let ((new-state (copy self)))
-    (setf (c-left new-state) (+ 2 (c-left new-state)))
-    (describe new-state)
-    (when (is-valid-state new-state) new-state)))
+    (new-valid-state-or-nil self
+      (lambda (new)
+        (setf (c-left new) (+ 2 (c-left new))))))
 
 (defparameter *missionaries-and-cannibals*
   (make-instance 'problem
