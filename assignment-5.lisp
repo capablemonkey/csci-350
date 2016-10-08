@@ -25,7 +25,8 @@
 (defmethod equal-states ((self island-state) (other island-state))
   (and
     (equal (m-left self) (m-left other))
-    (equal (c-left self) (c-left other))))
+    (equal (c-left self) (c-left other))
+    (equal (boat-is-left self) (boat-is-left other))))
 
 (defmethod copy ((self island-state))
   (make-instance 'island-state :m-left (m-left self) :c-left (c-left self)))
@@ -36,8 +37,7 @@
     (= 3 (c-left self))))
 
 (defmethod estimated-distance-from-goal ((self island-state))
-  ; TODO: do we need this?
-  )
+  (- 6 (+ (c-left self) (m-left self))))
 
 ; operators
 
@@ -135,21 +135,31 @@
 
 ; tests to ensure operators don't result in invalid states:
 
-(if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 0)))
-  (print "fail") (print "pass"))
+; (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 0)))
+;   (print "fail") (print "pass"))
 
-(if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 1)))
-  (print "fail") (print "pass"))
+; (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 1)))
+;   (print "fail") (print "pass"))
 
-(if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 2)))
-  (print "pass") (print "fail"))
+; (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 2)))
+;   (print "pass") (print "fail"))
 
-(if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 1 :c-left 0)))
-  (print "pass") (print "fail"))
+; (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 1 :c-left 0)))
+;   (print "pass") (print "fail"))
 
-(if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 2 :c-left 0)))
-  (print "fail") (print "pass"))
+; (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 2 :c-left 0)))
+;   (print "fail") (print "pass"))
 
 ; here we go
 
-(print (path (breadth-first-search *missionaries-and-cannibals*)))
+; (print (path (breadth-first-search *missionaries-and-cannibals*)))
+; (print (path (depth-first-search *missionaries-and-cannibals*)))
+(print (depth-first-search-with-duplicate-node-detection *missionaries-and-cannibals*))
+
+; (defparameter *default-depth-limit* 12)
+; (print (depth-first-search-with-depth-limit *missionaries-and-cannibals*))
+; (print (best-first-search *missionaries-and-cannibals*))
+
+; (print (steepest-ascent-hill-climbing *missionaries-and-cannibals*))
+; (print (optimal-heuristic-search *missionaries-and-cannibals*))
+; (print (a-star-search *missionaries-and-cannibals*))
