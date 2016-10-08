@@ -10,6 +10,8 @@
         (setf sorted-list (rest sorted-list)))
     T))
 
+(print (all-diff 3 4 9 1 8 5 3))
+
 (setf variables '(a b c d))
 (setf domain '(0 1 2 3 4 5 6 7 8 9))
 (setf constraints
@@ -17,21 +19,22 @@
     ((a b c d) equal-sums)
     ((a b c d) all-diff)))
 
-(print variables)
-(print constraints)
-(print (all-diff 3 4 9 1 8 5 3))
-
-(defun verify (constraint)
+(defun verify (constraint assignments)
   (let (
     (variables (first constraint))
-    (predicate (second constraint)))
-    (apply predicate (mapcar #'symbol-value variables))))
+    (predicate (second constraint))
+    (values (mapcar (lambda (key) (gethash key assignments)) variables)))
+    (apply predicate values)))
+
+(defun verify-constraints (constraints assignments)
+  (every (lambda (constraint) (verify constraint assignments)) constraints))
 
 ; test verify:
-(setf a 5)
-(setf b 3)
-(setf c 7)
-(setf d 1)
 
-(print (verify (first constraints)))
-(print (verify (second constraints)))
+(setf assignments (make-hash-table))
+(setf (gethash 'a assignments) 3)
+(setf (gethash 'b assignments) 5)
+(setf (gethash 'c assignments) 7)
+(setf (gethash 'd assignments) 1)
+
+(print (verify-constraints constraints assignments))
