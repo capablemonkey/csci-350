@@ -17,7 +17,8 @@
 (setf constraints
   '(
     ((a b c d) equal-sums)
-    ((a b c d) all-diff)))
+    ((a b c d) all-diff)
+    ((a) oddp)))
 
 (defun verify (constraint assignments)
   (let* (
@@ -54,8 +55,10 @@
       )))
 
 (let ((results (brute-force domain constraints)))
-  (format t "~%Solution found~%a: ~a | b: ~a | c: ~a | d: ~a"
-    (gethash 'a results)
-    (gethash 'b results)
-    (gethash 'c results)
-    (gethash 'd results)))
+  (if results
+    (format t "~%Solution found: a: ~a | b: ~a | c: ~a | d: ~a"
+      (gethash 'a results)
+      (gethash 'b results)
+      (gethash 'c results)
+      (gethash 'd results))
+    (format t "~%No solution found")))
