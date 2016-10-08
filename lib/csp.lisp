@@ -1,6 +1,3 @@
-(defun equal-sums (a b c d)
-  (equal (+ a b) (+ c d)))
-
 (defun all-diff (&rest list)
   (let ((sorted-list (sort list #'<)))
     (loop
@@ -15,10 +12,10 @@
 (setf variables '(a b c d))
 (setf domain '(0 1 2 3 4 5 6 7 8 9))
 (setf constraints
-  '(
-    ((a b c d) equal-sums)
-    ((a b c d) all-diff)
-    ((a) oddp)))
+  (list
+    (list '(a b c d) (lambda (a b c d) (equal (+ a b) (+ c d))))
+    (list '(a b c d) (lambda (a b c d) (all-diff a b c d)))
+    (list '(a) #'oddp)))
 
 (defun verify (constraint assignments)
   (let* (
