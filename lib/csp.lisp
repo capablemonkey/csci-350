@@ -33,10 +33,29 @@
 
 ; test verify:
 
-(setf assignments (make-hash-table))
-(setf (gethash 'a assignments) 3)
-(setf (gethash 'b assignments) 5)
-(setf (gethash 'c assignments) 7)
-(setf (gethash 'd assignments) 1)
+; (setf assignments (make-hash-table))
+; (setf (gethash 'a assignments) 3)
+; (setf (gethash 'b assignments) 5)
+; (setf (gethash 'c assignments) 7)
+; (setf (gethash 'd assignments) 1)
 
-(print (verify-constraints constraints assignments))
+; (print (verify-constraints constraints assignments))
+
+(defun brute-force (domain constraints)
+  (loop for a in domain do
+    (loop for b in domain do
+      (let ((assignments (make-hash-table)))
+        (setf (gethash 'a assignments) a)
+        (setf (gethash 'b assignments) b)
+        (setf (gethash 'c assignments) 7)
+        (setf (gethash 'd assignments) 1)
+        (if (verify-constraints constraints assignments)
+          (return-from brute-force assignments)))
+      )))
+
+(let ((results (brute-force domain constraints)))
+  (format t "~%Solution found~%a: ~a | b: ~a | c: ~a | d: ~a"
+    (gethash 'a results)
+    (gethash 'b results)
+    (gethash 'c results)
+    (gethash 'd results)))
