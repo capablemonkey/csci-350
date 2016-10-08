@@ -20,11 +20,13 @@
     ((a b c d) all-diff)))
 
 (defun verify (constraint assignments)
-  (let (
+  (let* (
     (variables (first constraint))
     (predicate (second constraint))
-    (values (mapcar (lambda (key) (gethash key assignments)) variables)))
-    (apply predicate values)))
+    (values (mapcar (lambda (key) (gethash key assignments)) variables))
+    (satisfied? (apply predicate values)))
+      (format t "~%* constraint ~a satisfied? [~a]" constraint satisfied?)
+      satisfied?))
 
 (defun verify-constraints (constraints assignments)
   (every (lambda (constraint) (verify constraint assignments)) constraints))
