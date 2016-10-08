@@ -1,6 +1,6 @@
 (load "lib/searchengine.lisp")
 
-; define search state
+; define problem state
 
 (defclass island-state (state)
   ((m-left
@@ -133,11 +133,7 @@
     :operators '(move-2c-left move-2c-right move-1c-left move-1c-right move-2m-left move-2m-right move-1m-left move-1m-right move-1m1c-left move-1m1c-right)
     :name "missionaries and cannibals"))
 
-; (describe (all-over (start-state *missionaries-and-cannibals*)))
-
-(describe (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 0)))
-
-; TODO: write tests to ensure operators don't result in invalid states:
+; tests to ensure operators don't result in invalid states:
 
 (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 0 :c-left 0)))
   (print "fail") (print "pass"))
@@ -153,5 +149,7 @@
 
 (if (equal NIL (move-2c-left (make-instance 'island-state :boat-is-left NIL :m-left 2 :c-left 0)))
   (print "fail") (print "pass"))
+
+; here we go
 
 (print (path (breadth-first-search *missionaries-and-cannibals*)))
