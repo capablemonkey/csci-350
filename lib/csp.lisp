@@ -47,9 +47,23 @@
     *constraints*))
 
 (defmethod unary-constraints ((self varyable))
-  (remove-if
-    (lambda (constraint) (> (length (scope constraint)) 1))
+  (remove-if-not
+    (lambda (constraint) (equal (length (scope constraint)) 1))
     (constraints self)))
+
+(defmethod binary-constraints ((self varyable))
+  (remove-if-not
+    (lambda (constraint) (equal (length (scope constraint)) 2))
+    (constraints self)))
+
+; order matters here
+(defmethod binary-constraints-with ((self varyable) (other varyable))
+  (remove-if-not
+    (lambda (constraint)
+      (and
+        (equal 0 (position (name self) (scope constraint)))
+        (equal 1 (position (name other) (scope constraint)))))
+    (binary-constraints self)))
 
 (defmethod make-node-consistent ((self varyable))
   (loop for constraint in (unary-constraints self) do
@@ -58,9 +72,28 @@
         (lambda (val) (funcall (predicate constraint) val))
         (domain self)))))
 
+(defmethod revise ((self varyable) (other varyable))
+  (loop for constraint in (binary-constraints-with self other) do
+    (setf (domain self)
+      (remove-if-not
+        (lambda (value) (some
+          (lambda (other-value) (funcall (predicate constraint) value other-value))
+          (domain other)))
+      (domain self)))))
+
+; (defmethod make-arc-consistent ((self varyable) (other varyable))
+;   )
+
 (print (constraints (first *varyables*)))
 
+(make-node-consistent (first *varyables*))
+(print (domain (first *varyables*)))
+
 (make-node-consistent (second *varyables*))
+(print (domain (second *varyables*)))
+
+(revise (second *varyables*) (first *varyables*))
+(print (domain (first *varyables*)))
 (print (domain (second *varyables*)))
 
 ; (defclass CSP ()
