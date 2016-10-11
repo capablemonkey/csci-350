@@ -46,7 +46,7 @@
   (list
     (make-instance 'constraint :scope '(q) :predicate #'evenp)
     (make-instance 'constraint :scope '(w) :predicate (lambda (w) (> w 6)))
-    (make-instance 'constraint :scope '(w q) :predicate (lambda (w q) (> q w)))
+    (make-instance 'constraint :scope '(w q) :predicate (lambda (w q) (< q w)))
     ))
 
 ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
@@ -70,9 +70,12 @@
         (mapcar
           (lambda (varyable)
             (incf index)
-            (make-instance 'constraint
-              :scope (list (name varyable) (name capsule))
-              :predicate (lambda (original-var encapsulated-var) (equal original-var (nth (- index 1) encapsulated-var)))))
+            (let ((idx index))
+              (make-instance 'constraint
+                :scope (list (name varyable) (name capsule))
+                :predicate (lambda (original-var encapsulated-var)
+                  ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
+                  (equal original-var (nth (- idx 1) encapsulated-var))))))
           varyables))))
 
     (push capsule *varyables*)
@@ -139,11 +142,10 @@
   (loop for varyable in *varyables* do
     (make-node-consistent varyable)))
 
+(make-csp-node-consistent)
 (create-n-ary-constraint '(q w u) (lambda (q w u) (equal u (+ q w))))
 
 (make-csp-node-consistent)
-(print (domain (first *varyables*)))
-(print (domain (second *varyables*)))
 
 (defun make-csp-arc-consistent ()
   ; arcs = scopes of binary constraints
@@ -157,6 +159,11 @@
             (push (scope constraint-on-other) queue))))))
 
 (make-csp-arc-consistent)
+
+; (revise (get-varyable-by-name 'q) (get-varyable-by-name "encapQWU"))
+; (revise (get-varyable-by-name 'w) (get-varyable-by-name "encapQWU"))
+; (revise (get-varyable-by-name 'u) (get-varyable-by-name "encapQWU"))
+; (revise (get-varyable-by-name 'w) (get-varyable-by-name "encapQWU"))
 
 (loop for c in *constraints* do (describe c))
 (loop for v in *varyables* do (describe v))
