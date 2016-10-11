@@ -41,39 +41,44 @@
     (make-instance 'constraint :scope '(w q) :predicate (lambda (w q) (> q w)))
     ))
 
-(defmethod constraints ((self varyable))
+(defun all-binary-constraints ()
+  (remove-if-not
+    (lambda (constraint) (equal 2 (length (scope constraint))))
+    *constraints*))
+
+(defmethod constraints-on ((self varyable))
   (remove-if
     (lambda (constraint) (equal nil (position (name self) (scope constraint))))
     *constraints*))
 
-(defmethod unary-constraints ((self varyable))
+(defmethod unary-constraints-on ((self varyable))
   (remove-if-not
     (lambda (constraint) (equal (length (scope constraint)) 1))
-    (constraints self)))
+    (constraints-on self)))
 
-(defmethod binary-constraints ((self varyable))
+(defmethod binary-constraints-on ((self varyable))
   (remove-if-not
     (lambda (constraint) (equal (length (scope constraint)) 2))
-    (constraints self)))
+    (constraints-on self)))
 
-; order matters here
+; order of arguments matter here
 (defmethod binary-constraints-with ((self varyable) (other varyable))
   (remove-if-not
     (lambda (constraint)
       (and
         (equal 0 (position (name self) (scope constraint)))
         (equal 1 (position (name other) (scope constraint)))))
-    (binary-constraints self)))
+    (binary-constraints-on self)))
 
 (defmethod make-node-consistent ((self varyable))
-  (loop for constraint in (unary-constraints self) do
+  (loop for constraint in (unary-constraints-on self) do
     (setf (domain self)
       (remove-if-not
         (lambda (val) (funcall (predicate constraint) val))
         (domain self)))))
 
 (defmethod revise ((self varyable) (other varyable))
-  (let* ((changed NIL))
+  (let ((changed NIL))
     (loop for constraint in (binary-constraints-with self other) do
       (let ((new-domain
         (remove-if-not
@@ -100,7 +105,19 @@
 (print (domain (first *varyables*)))
 (print (domain (second *varyables*)))
 
-(print (revise (second *varyables*) (first *varyables*)))
+(defun make-csp-arc-consistent ()
+  ; arcs = scopes of binary constraints
+  ; for each arc in arcs: revise ((get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
+  ; if revise's return value is true, push back on to queue
+  (let ((queue (mapcar #'scope (all-binary-constraints))))
+    (loop until (null queue)
+      for arc = (pop queue) do
+        (if (revise (get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
+          (loop for constraint-on-other in (binary-constraints-on (get-varyable-by-name (second arc))) do
+            (push (scope constraint-on-other) queue))))))
+
+(make-csp-arc-consistent)
+
 (print (domain (first *varyables*)))
 (print (domain (second *varyables*)))
 
