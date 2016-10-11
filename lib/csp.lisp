@@ -73,26 +73,34 @@
         (domain self)))))
 
 (defmethod revise ((self varyable) (other varyable))
-  (loop for constraint in (binary-constraints-with self other) do
-    (setf (domain self)
-      (remove-if-not
-        (lambda (value) (some
-          (lambda (other-value) (funcall (predicate constraint) value other-value))
-          (domain other)))
-      (domain self)))))
+  (let* ((changed NIL))
+    (loop for constraint in (binary-constraints-with self other) do
+      (let ((new-domain
+        (remove-if-not
+          (lambda (value)
+            (some (lambda (other-value) (funcall (predicate constraint) value other-value))
+              (domain other)))
+          (domain self))))
+        (unless (equal (length (domain self)) (length new-domain))
+          (setf changed T))
+        (setf (domain self) new-domain)))
+    changed))
 
-; (defmethod make-arc-consistent ((self varyable) (other varyable))
-;   )
+(defun get-varyable-by-name (name)
+  (loop for varyable in *varyables* do
+    (if (equal name (name varyable))
+      (return-from get-varyable-by-name varyable)))
+  nil)
 
-(print (constraints (first *varyables*)))
+(defun make-csp-node-consistent ()
+  (loop for varyable in *varyables* do
+    (make-node-consistent varyable)))
 
-(make-node-consistent (first *varyables*))
+(make-csp-node-consistent)
 (print (domain (first *varyables*)))
-
-(make-node-consistent (second *varyables*))
 (print (domain (second *varyables*)))
 
-(revise (second *varyables*) (first *varyables*))
+(print (revise (second *varyables*) (first *varyables*)))
 (print (domain (first *varyables*)))
 (print (domain (second *varyables*)))
 
