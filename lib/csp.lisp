@@ -50,6 +50,7 @@
     ))
 
 ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
+; For now, we'll write bi-directional constraints as separate constraints for each way
 
 (defun create-n-ary-constraint (varyable-names predicate)
   ; create new variable called encap-var1-var2-var3-(length constraints) with domain = cartesian product of domains
@@ -65,7 +66,7 @@
       (make-instance 'constraint
         :scope (list (name capsule))
         :predicate (lambda (tuple) (apply predicate tuple))))
-    (binding-constraints
+    (binding-constraints-a
       (let ((index 0))
         (mapcar
           (lambda (varyable)
@@ -76,11 +77,24 @@
                 :predicate (lambda (original-var encapsulated-var)
                   ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
                   (equal original-var (nth (- idx 1) encapsulated-var))))))
+          varyables)))
+    (binding-constraints-b
+      (let ((index 0))
+        (mapcar
+          (lambda (varyable)
+            (incf index)
+            (let ((idx index))
+              (make-instance 'constraint
+                :scope (list (name capsule) (name varyable))
+                :predicate (lambda (encapsulated-var original-var)
+                  ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
+                  (equal original-var (nth (- idx 1) encapsulated-var))))))
           varyables))))
 
     (push capsule *varyables*)
     (push unary-capsule-constraint *constraints*)
-    (setf *constraints* (append *constraints* binding-constraints))))
+    (setf *constraints* (append *constraints* binding-constraints-a))
+    (setf *constraints* (append *constraints* binding-constraints-b))))
 
 (defun all-binary-constraints ()
   (remove-if-not
