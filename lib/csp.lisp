@@ -40,9 +40,18 @@
   (default-domain
     :initarg :default-domain
     :accessor default-domain)
+  (domains
+    :initarg :domains
+    :accessor domains)
   (constraints
     :initarg :constraints
     :accessor constraints)))
+
+(defmethod initialize-instance :after ((self CSP) &key)
+  (setf (domains self)
+    (mapcar
+      (lambda (_) (default-domain self))
+      (varyables self))))
 
 (defclass assignment ()
   ((assigned-values
@@ -60,13 +69,16 @@
     :assigned-values (assigned-values self)
     :updated-domains (updated-domains self)))
 
-(defmethod domain-for-varyable ((self assignment) (csp CSP) varyable)
-  (nth (position varyable (varyables csp)) (updated-domains self)))
+; (defmethod domain-for-varyable ((self assignment) (csp CSP) varyable)
+;   (nth (position varyable (varyables csp)) (updated-domains self)))
+
+(defmethod domain-for-varyable ((self csp) varyable)
+  (nth (position varyable (varyables self)) (domains self)))
 
 (defmethod empty-assignment ((self CSP))
   (make-instance 'assignment
     :assigned-values (make-list (length (varyables self)))
-    :updated-domains (mapcar (lambda (_) (default-domain self)) (varyables self))))
+    :updated-domains (domains self)))
 
 (defun backtracking-search (self CSP)
   (backtrack (empty-assignment self)))
@@ -86,49 +98,47 @@
 ; ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
 ; ; For now, we'll write bi-directional constraints as separate constraints for each way
 
-; (defun create-n-ary-constraint (varyable-names predicate)
-;   ; create new variable called encap-var1-var2-var3-(length constraints) with domain = cartesian product of domains
-;   ; add unary constraint on variable
-;   ; add binary constraints between original variables and ith value of encapsulated variable
-;   (let* (
-;     (varyables (mapcar #'get-varyable-by-name varyable-names))
-;     (capsule
-;       (make-instance 'varyable
-;         :name (concat-string (append (list "encap") varyable-names))
-;         :domain (reduce #'cartesian-product (mapcar #'domain varyables))))
-;     (unary-capsule-constraint
-;       (make-instance 'constraint
-;         :scope (list (name capsule))
-;         :predicate (lambda (tuple) (apply predicate tuple))))
-;     (binding-constraints-a
-;       (let ((index 0))
-;         (mapcar
-;           (lambda (varyable)
-;             (incf index)
-;             (let ((idx index))
-;               (make-instance 'constraint
-;                 :scope (list (name varyable) (name capsule))
-;                 :predicate (lambda (original-var encapsulated-var)
-;                   ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
-;                   (equal original-var (nth (- idx 1) encapsulated-var))))))
-;           varyables)))
-;     (binding-constraints-b
-;       (let ((index 0))
-;         (mapcar
-;           (lambda (varyable)
-;             (incf index)
-;             (let ((idx index))
-;               (make-instance 'constraint
-;                 :scope (list (name capsule) (name varyable))
-;                 :predicate (lambda (encapsulated-var original-var)
-;                   ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
-;                   (equal original-var (nth (- idx 1) encapsulated-var))))))
-;           varyables))))
+(defmethod create-n-ary-constraint ((self CSP) varyables predicate)
+  ; create new variable called encap-var1-var2-var3-(length constraints) with domain = cartesian product of domains
+  ; add unary constraint on variable
+  ; add binary constraints between original variables and ith value of encapsulated variable
+  (let* (
+    (capsule (concat-string (append (list "encap") varyables)))
+    (capsule-domain (reduce #'cartesian-product (mapcar (lambda (varyable) (domain-for-varyable self varyable)) varyables)))
+    (unary-capsule-constraint
+      (make-instance 'constraint
+        :scope (list capsule)
+        :predicate (lambda (tuple) (apply predicate tuple))))
+    (binding-constraints-a
+      (let ((index 0))
+        (mapcar
+          (lambda (varyable)
+            (incf index)
+            (let ((idx index))
+              (make-instance 'constraint
+                :scope (list varyable capsule)
+                :predicate (lambda (original-var encapsulated-var)
+                  ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
+                  (equal original-var (nth (- idx 1) encapsulated-var))))))
+          varyables)))
+    (binding-constraints-b
+      (let ((index 0))
+        (mapcar
+          (lambda (varyable)
+            (incf index)
+            (let ((idx index))
+              (make-instance 'constraint
+                :scope (list capsule varyable)
+                :predicate (lambda (encapsulated-var original-var)
+                  ; (format t "~%comparing ~a and ~a at ~a" original-var encapsulated-var idx)
+                  (equal original-var (nth (- idx 1) encapsulated-var))))))
+          varyables))))
 
-;     (push capsule *varyables*)
-;     (push unary-capsule-constraint *constraints*)
-;     (setf *constraints* (append *constraints* binding-constraints-a))
-;     (setf *constraints* (append *constraints* binding-constraints-b))))
+    (push capsule (varyables self))
+    (push capsule-domain (domains self))
+    (push unary-capsule-constraint (constraints self))
+    (setf (constraints self) (append (constraints self) binding-constraints-a))
+    (setf (constraints self) (append (constraints self) binding-constraints-b))))
 
 (defmethod all-binary-constraints ((self CSP))
   (remove-if-not
@@ -173,13 +183,13 @@
 ;         (setf (domain self) new-domain)))
 ;     changed))
 
-(defmethod make-assignment-node-consistent ((self assignment) (csp CSP))
-  (setf (updated-domains self)
+(defmethod make-csp-node-consistent ((self CSP))
+  (setf (domains self)
     (mapcar
       (lambda (varyable)
         (let (
-          (constraints (unary-constraints-on csp varyable))
-          (domain (domain-for-varyable self csp varyable)))
+          (constraints (unary-constraints-on self varyable))
+          (domain (domain-for-varyable self varyable)))
           (if (null constraints)
             domain
             (remove-if-not
@@ -189,15 +199,15 @@
                     (funcall (predicate constraint) value))
                   constraints))
               domain))))
-      (varyables csp))))
+      (varyables self))))
 
-; (make-csp-node-consistent)
-; (create-n-ary-constraint '(tt w o ff u r) #'all-diff)
-; (create-n-ary-constraint '(o r c1) (lambda (o r c1) (equal (+ o o) (+ r (* c1 10)))))
-; (create-n-ary-constraint '(w c1 u c2) (lambda (w c1 u c2) (equal (+ w w (* c1 10)) (+ u (* c2 10)))))
-; (create-n-ary-constraint '(tt c2 o ff) (lambda (tt c2 o ff) (equal (+ tt tt (* c2 10)) (+ o (* ff 10)))))
+(make-csp-node-consistent *two-four*)
+(create-n-ary-constraint *two-four* '(tt w o ff u r) #'all-diff)
+(create-n-ary-constraint *two-four* '(o r c1) (lambda (o r c1) (equal (+ o o) (+ r (* c1 10)))))
+(create-n-ary-constraint *two-four* '(w c1 u c2) (lambda (w c1 u c2) (equal (+ w w (* c1 10)) (+ u (* c2 10)))))
+(create-n-ary-constraint *two-four* '(tt c2 o ff) (lambda (tt c2 o ff) (equal (+ tt tt (* c2 10)) (+ o (* ff 10)))))
 
-; (make-csp-node-consistent)
+(make-csp-node-consistent *two-four*)
 
 ; (defmethod make-csp-arc-consistent ((self CSP))
 ;   ; arcs = scopes of binary constraints
@@ -225,6 +235,5 @@
 ; ; (describe (unary-constraints-on (get-varyable-by-name "encapQWU")))
 
 (let ((assignment (empty-assignment *two-four*)))
-  (make-assignment-node-consistent assignment *two-four*)
   (describe assignment)
   (print (updated-domains assignment)))
