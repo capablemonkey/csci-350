@@ -38,15 +38,21 @@
 
 (defparameter *varyables*
   (list
-    (make-instance 'varyable :name 'q :domain *domain*)
+    (make-instance 'varyable :name 'tt :domain *domain*)
     (make-instance 'varyable :name 'w :domain *domain*)
-    (make-instance 'varyable :name 'u :domain *domain*)))
+    (make-instance 'varyable :name 'o :domain *domain*)
+    (make-instance 'varyable :name 'ff :domain *domain*)
+    (make-instance 'varyable :name 'u :domain *domain*)
+    (make-instance 'varyable :name 'r :domain *domain*)
+    (make-instance 'varyable :name 'c1 :domain *domain*)
+    (make-instance 'varyable :name 'c2 :domain *domain*)
+    (make-instance 'varyable :name 'c3 :domain *domain*)))
 
 (defparameter *constraints*
   (list
-    (make-instance 'constraint :scope '(q) :predicate #'evenp)
-    (make-instance 'constraint :scope '(w) :predicate (lambda (w) (> w 6)))
-    (make-instance 'constraint :scope '(w q) :predicate (lambda (w q) (< q w)))
+    (make-instance 'constraint :scope '(r) :predicate #'evenp)
+    (make-instance 'constraint :scope '(ff c3) :predicate (lambda (ff c3) (equal ff c3)))
+    (make-instance 'constraint :scope '(c3 ff) :predicate (lambda (c3 ff) (equal ff c3)))
     ))
 
 ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
@@ -157,7 +163,10 @@
     (make-node-consistent varyable)))
 
 (make-csp-node-consistent)
-(create-n-ary-constraint '(q w u) (lambda (q w u) (equal u (+ q w))))
+(create-n-ary-constraint '(tt w o ff u r) #'all-diff)
+(create-n-ary-constraint '(o r c1) (lambda (o r c1) (equal (+ o o) (+ r (* c1 10)))))
+(create-n-ary-constraint '(w c1 u c2) (lambda (w c1 u c2) (equal (+ w w (* c1 10)) (+ u (* c2 10)))))
+(create-n-ary-constraint '(tt c2 o ff) (lambda (tt c2 o ff) (equal (+ tt tt (* c2 10)) (+ o (* ff 10)))))
 
 (make-csp-node-consistent)
 
