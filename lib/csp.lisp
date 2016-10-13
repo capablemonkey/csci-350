@@ -69,11 +69,11 @@
     :assigned-values (assigned-values self)
     :updated-domains (updated-domains self)))
 
-; (defmethod domain-for-varyable ((self assignment) (csp CSP) varyable)
-;   (nth (position varyable (varyables csp)) (updated-domains self)))
+(defmethod index-of-varyable ((self csp) varyable)
+  (position varyable (varyables self)))
 
 (defmethod domain-for-varyable ((self csp) varyable)
-  (nth (position varyable (varyables self)) (domains self)))
+  (nth (index-of-varyable self varyable) (domains self)))
 
 (defmethod empty-assignment ((self CSP))
   (make-instance 'assignment
@@ -155,33 +155,36 @@
     (lambda (constraint) (equal (length (scope constraint)) 1))
     (constraints-on self varyable)))
 
-; (defmethod binary-constraints-on ((self varyable))
-;   (remove-if-not
-;     (lambda (constraint) (equal (length (scope constraint)) 2))
-;     (constraints-on self var)))
+(defmethod binary-constraints-on ((self CSP) varyable)
+  (remove-if-not
+    (lambda (constraint) (equal (length (scope constraint)) 2))
+    (constraints-on self varyable)))
 
-; ; order of arguments matter here
-; (defmethod binary-constraints-with ((self varyable) (other varyable))
-;   (remove-if-not
-;     (lambda (constraint)
-;       (and
-;         (equal 0 (position (name self) (scope constraint)))
-;         (equal 1 (position (name other) (scope constraint)))))
-;     (binary-constraints-on self)))
+; order of arguments matter here
+(defmethod binary-constraints-with ((self CSP) varyable-a varyable-b)
+  (remove-if-not
+    (lambda (constraint)
+      (and
+        (equal 0 (position varyable-a (scope constraint)))
+        (equal 1 (position varyable-b (scope constraint)))))
+    (binary-constraints-on self varyable-a)))
 
-; (defmethod revise ((self varyable) (other varyable))
-;   (let ((changed NIL))
-;     (loop for constraint in (binary-constraints-with self other) do
-;       (let ((new-domain
-;         (remove-if-not
-;           (lambda (value)
-;             (some (lambda (other-value) (funcall (predicate constraint) value other-value))
-;               (domain other)))
-;           (domain self))))
-;         (unless (equal (length (domain self)) (length new-domain))
-;           (setf changed T))
-;         (setf (domain self) new-domain)))
-;     changed))
+(defmethod revise ((self assignment) csp varyable-a varyable-b)
+  (let ((changed NIL))
+    (loop for constraint in (binary-constraints-with csp varyable-a varyable-b) do
+      (let* (
+        (domain-a (nth (index-of-varyable csp varyable-a) (updated-domains self)))
+        (domain-b (nth (index-of-varyable csp varyable-b) (updated-domains self)))
+        (new-domain-a
+        (remove-if-not
+          (lambda (value)
+            (some (lambda (other-value) (funcall (predicate constraint) value other-value))
+              domain-b))
+          domain-a)))
+        (unless (equal (length domain-a) (length new-domain-a))
+          (setf changed T))
+        (setf (nth (index-of-varyable csp varyable-a) (updated-domains self)) new-domain-a)))
+    changed))
 
 (defmethod make-csp-node-consistent ((self CSP))
   (setf (domains self)
@@ -209,18 +212,16 @@
 
 (make-csp-node-consistent *two-four*)
 
-; (defmethod make-csp-arc-consistent ((self CSP))
-;   ; arcs = scopes of binary constraints
-;   ; for each arc in arcs: revise ((get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
-;   ; if revise's return value is true, push back on to queue
-;   (let ((queue (mapcar #'scope (all-binary-constraints))))
-;     (loop until (null queue)
-;       for arc = (pop queue) do
-;         (if (revise (get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
-;           (loop for constraint-on-other in (binary-constraints-on (get-varyable-by-name (second arc))) do
-;             (push (scope constraint-on-other) queue))))))
-
-; (make-csp-arc-consistent)
+(defmethod make-csp-arc-consistent ((self assignment) csp)
+  ; arcs = scopes of binary constraints
+  ; for each arc in arcs: revise ((get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
+  ; if revise's return value is true, push back on to queue
+  (let ((queue (mapcar #'scope (all-binary-constraints csp))))
+    (loop until (null queue)
+      for arc = (pop queue) do
+        (if (revise self csp (first arc) (second arc))
+          (loop for constraint-on-other in (binary-constraints-on csp (second arc)) do
+            (push (scope constraint-on-other) queue)))))) ; TODO: limit to only where (second arc) is first in scope
 
 ; ; (revise (get-varyable-by-name 'q) (get-varyable-by-name "encapQWU"))
 ; ; (revise (get-varyable-by-name 'w) (get-varyable-by-name "encapQWU"))
@@ -235,5 +236,6 @@
 ; ; (describe (unary-constraints-on (get-varyable-by-name "encapQWU")))
 
 (let ((assignment (empty-assignment *two-four*)))
+  (make-csp-arc-consistent assignment *two-four*)
   (describe assignment)
   (print (updated-domains assignment)))
