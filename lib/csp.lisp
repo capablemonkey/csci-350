@@ -61,13 +61,38 @@
     :initarg :updated-domains
     :accessor updated-domains)))
 
-(defmethod make-arc-consistent ((self assignment))
-  ())
+(defmethod is-complete ((self assignment))
+  (notany #'null (assigned-values self)))
+
+(defmethod is-consistent ((self assignment) csp)
+  (
+  ; get list of assigned variables
+  ; get list of constraints between assigned variables
+  ; for each constraint, ensure satisifed
+    ))
+
+(defmethod is-solution ((self assignment) csp)
+  (and
+    (is-complete self)
+    (is-consistent self csp)))
 
 (defmethod copy ((self assignment))
   (make-instance 'assignment
     :assigned-values (assigned-values self)
     :updated-domains (updated-domains self)))
+
+(defmethod varyable-with-min-remaining-values ((self assignment) csp)
+  (let*
+    ((vars-to-domain-lengths
+      (mapcar
+        (lambda (varyable domain) (list varyable (length domain)))
+        (varyables csp)
+        (updated-domains self)))
+    (sorted-vars-to-domain-lengths
+      (sort vars-to-domain-lengths
+      (lambda (tuple-a tuple-b)
+        (< (second tuple-a) (second tuple-b))))))
+    (first (first sorted-vars-to-domain-lengths))))
 
 (defmethod index-of-varyable ((self csp) varyable)
   (position varyable (varyables self)))
@@ -79,21 +104,6 @@
   (make-instance 'assignment
     :assigned-values (make-list (length (varyables self)))
     :updated-domains (domains self)))
-
-(defun backtracking-search (self CSP)
-  (backtrack (empty-assignment self)))
-
-(defun backtrack (assignment csp)
-  ())
-
-(defparameter *two-four*
-  (make-instance 'CSP
-    :varyables '(tt w o ff u r c1 c2 c3)
-    :default-domain '(0 1 2 3 4 5 6 7 8 9)
-    :constraints (list
-      (make-instance 'constraint :scope '(r) :predicate #'evenp)
-      (make-instance 'constraint :scope '(ff c3) :predicate (lambda (ff c3) (equal ff c3)))
-      (make-instance 'constraint :scope '(c3 ff) :predicate (lambda (c3 ff) (equal ff c3))))))
 
 ; ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
 ; ; For now, we'll write bi-directional constraints as separate constraints for each way
@@ -204,14 +214,6 @@
               domain))))
       (varyables self))))
 
-(make-csp-node-consistent *two-four*)
-(create-n-ary-constraint *two-four* '(tt w o ff u r) #'all-diff)
-(create-n-ary-constraint *two-four* '(o r c1) (lambda (o r c1) (equal (+ o o) (+ r (* c1 10)))))
-(create-n-ary-constraint *two-four* '(w c1 u c2) (lambda (w c1 u c2) (equal (+ w w (* c1 10)) (+ u (* c2 10)))))
-(create-n-ary-constraint *two-four* '(tt c2 o ff) (lambda (tt c2 o ff) (equal (+ tt tt (* c2 10)) (+ o (* ff 10)))))
-
-(make-csp-node-consistent *two-four*)
-
 (defmethod make-csp-arc-consistent ((self assignment) csp)
   ; arcs = scopes of binary constraints
   ; for each arc in arcs: revise ((get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
@@ -223,19 +225,37 @@
           (loop for constraint-on-other in (binary-constraints-on csp (second arc)) do
             (push (scope constraint-on-other) queue)))))) ; TODO: limit to only where (second arc) is first in scope
 
-; ; (revise (get-varyable-by-name 'q) (get-varyable-by-name "encapQWU"))
-; ; (revise (get-varyable-by-name 'w) (get-varyable-by-name "encapQWU"))
-; ; (revise (get-varyable-by-name 'u) (get-varyable-by-name "encapQWU"))
-; ; (revise (get-varyable-by-name 'w) (get-varyable-by-name "encapQWU"))
+(defun backtrack (assignment csp)
+  (if (is-complete assignment)
+    (return-from backtrack assignment))
+  (let ((unassigned-var (varyable-with-min-remaining-values assignment csp)))
+    ; (print unassigned-var)
+    ; (for value in () do)
+    ; don't forget to use (copy assignment)
+    ))
 
-; (loop for c in *constraints* do (describe c))
-; (loop for v in *varyables* do (describe v))
+(defmethod backtracking-search ((self CSP))
+  (let ((assignment (empty-assignment self)))
+    (make-csp-arc-consistent assignment self)
+    (backtrack assignment self)))
 
-; ; (make-node-consistent (get-varyable-by-name "encapQWU"))
-; ; (print (domain (get-varyable-by-name "encapQWU")))
-; ; (describe (unary-constraints-on (get-varyable-by-name "encapQWU")))
+(defparameter *two-four*
+  (make-instance 'CSP
+    :varyables '(tt w o ff u r c1 c2 c3)
+    :default-domain '(0 1 2 3 4 5 6 7 8 9)
+    :constraints (list
+      (make-instance 'constraint :scope '(r) :predicate #'evenp)
+      (make-instance 'constraint :scope '(ff c3) :predicate (lambda (ff c3) (equal ff c3)))
+      (make-instance 'constraint :scope '(c3 ff) :predicate (lambda (c3 ff) (equal ff c3))))))
 
-(let ((assignment (empty-assignment *two-four*)))
-  (make-csp-arc-consistent assignment *two-four*)
-  (describe assignment)
-  (print (updated-domains assignment)))
+; make node-consistent before applying n-ary constraints so their encapsulated variables aren't unneccesarily big
+(make-csp-node-consistent *two-four*)
+(create-n-ary-constraint *two-four* '(tt w o ff u r) #'all-diff)
+(create-n-ary-constraint *two-four* '(o r c1) (lambda (o r c1) (equal (+ o o) (+ r (* c1 10)))))
+(create-n-ary-constraint *two-four* '(w c1 u c2) (lambda (w c1 u c2) (equal (+ w w (* c1 10)) (+ u (* c2 10)))))
+(create-n-ary-constraint *two-four* '(tt c2 o ff) (lambda (tt c2 o ff) (equal (+ tt tt (* c2 10)) (+ o (* ff 10)))))
+
+; then, apply the unary constraints on new intermediate variables:
+(make-csp-node-consistent *two-four*)
+
+(backtracking-search *two-four*)
