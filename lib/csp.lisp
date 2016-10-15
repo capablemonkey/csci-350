@@ -97,10 +97,22 @@
     (is-complete self)
     (is-consistent self csp)))
 
+; snippet from http://stackoverflow.com/a/26061176:
+(defun copy-hash-table (hash-table)
+  (let ((ht (make-hash-table 
+             :test (hash-table-test hash-table)
+             :rehash-size (hash-table-rehash-size hash-table)
+             :rehash-threshold (hash-table-rehash-threshold hash-table)
+             :size (hash-table-size hash-table))))
+    (loop for key being each hash-key of hash-table
+       using (hash-value value)
+       do (setf (gethash key ht) value)
+       finally (return ht))))
+
 (defmethod copy ((self assignment))
   (make-instance 'assignment
-    :assigned-values (assigned-values self)
-    :updated-domains (updated-domains self)))
+    :assigned-values (copy-hash-table (assigned-values self))
+    :updated-domains (copy-hash-table (updated-domains self))))
 
 (defun print-hash (hash)
   (loop for k being the hash-keys in hash using (hash-value v)
@@ -301,6 +313,7 @@
 (defmethod backtracking-search ((self CSP))
   (let ((assignment (empty-assignment self)))
     (make-arc-consistent assignment self)
+    ; (print-assignment assignment)
     (backtrack assignment self)))
 
 (defparameter *two-four*
@@ -309,6 +322,7 @@
     :default-domain '(0 1 2 3 4 5 6 7 8 9)
     :constraints (list
       (make-instance 'constraint :scope '(r) :predicate #'evenp)
+      (make-instance 'constraint :scope '(ff) :predicate (lambda (ff) (> ff 0)))
       (make-instance 'constraint :scope '(ff c3) :predicate (lambda (ff c3) (equal ff c3)))
       (make-instance 'constraint :scope '(c3 ff) :predicate (lambda (c3 ff) (equal ff c3))))))
 
@@ -322,4 +336,7 @@
 ; then, apply the unary constraints on new intermediate variables:
 (make-csp-node-consistent *two-four*)
 
-(print-assignment (backtracking-search *two-four*))
+(let ((result (backtracking-search *two-four*)))
+  (if (not (null result))
+    (print-assignment result)
+    (print "no solution found")))
