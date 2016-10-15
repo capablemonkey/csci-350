@@ -61,8 +61,15 @@
     :initarg :updated-domains
     :accessor updated-domains)))
 
+(defun my-map-hash (func hash)
+  (loop for k being the hash-keys in hash using (hash-value v)
+    collect (funcall func k v)))
+
+(defun get-values (hash)
+  (my-map-hash (lambda (k v) v) hash))
+
 (defmethod is-complete ((self assignment))
-  (notany #'null (assigned-values self)))
+  (notany #'null (get-values (assigned-values self))))
 
 (defmethod is-consistent ((self assignment) csp)
   (
@@ -81,12 +88,21 @@
     :assigned-values (assigned-values self)
     :updated-domains (updated-domains self)))
 
-(defmethod varyable-with-min-remaining-values ((self assignment) csp)
+(defmethod print-assignment ((self assignment))
+  (format t "~%assigned values:~%")
+  (loop for k being the hash-keys in (assigned-values self) using (hash-value v)
+    do (format t "~a => ~a~%" k v))
+
+  (format t "~%updated domains:~%")
+
+  (loop for k being the hash-keys in (updated-domains self) using (hash-value v)
+    do (format t "~a => ~a~%" k v)))
+
+(defmethod varyable-with-min-remaining-values ((self assignment))
   (let*
     ((vars-to-domain-lengths
-      (mapcar
+      (my-map-hash
         (lambda (varyable domain) (list varyable (length domain)))
-        (varyables csp)
         (updated-domains self)))
     (sorted-vars-to-domain-lengths
       (sort vars-to-domain-lengths
@@ -101,9 +117,25 @@
   (nth (index-of-varyable self varyable) (domains self)))
 
 (defmethod empty-assignment ((self CSP))
-  (make-instance 'assignment
-    :assigned-values (make-list (length (varyables self)))
-    :updated-domains (domains self)))
+  (let
+    ((assigned-values (make-hash-table))
+    (updated-domains (make-hash-table)))
+
+    (loop
+      for varyable in (varyables self)
+      for domain in (domains self) do
+        (setf (gethash varyable assigned-values) NIL)
+        (setf (gethash varyable updated-domains) domain))
+
+    (make-instance 'assignment
+      :assigned-values assigned-values
+      :updated-domains updated-domains)))
+
+(defmethod get-domain-for ((self assignment) varyable)
+  (gethash varyable (updated-domains self)))
+
+(defmethod set-domain-for ((self assignment) varyable new-domain)
+  (setf (gethash varyable (updated-domains self)) new-domain))
 
 ; ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
 ; ; For now, we'll write bi-directional constraints as separate constraints for each way
@@ -183,8 +215,8 @@
   (let ((changed NIL))
     (loop for constraint in (binary-constraints-with csp varyable-a varyable-b) do
       (let* (
-        (domain-a (nth (index-of-varyable csp varyable-a) (updated-domains self)))
-        (domain-b (nth (index-of-varyable csp varyable-b) (updated-domains self)))
+        (domain-a (get-domain-for self varyable-a))
+        (domain-b (get-domain-for self varyable-b))
         (new-domain-a
         (remove-if-not
           (lambda (value)
@@ -193,7 +225,7 @@
           domain-a)))
         (unless (equal (length domain-a) (length new-domain-a))
           (setf changed T))
-        (setf (nth (index-of-varyable csp varyable-a) (updated-domains self)) new-domain-a)))
+        (set-domain-for self varyable-a new-domain-a)))
     changed))
 
 (defmethod make-csp-node-consistent ((self CSP))
@@ -228,8 +260,10 @@
 (defun backtrack (assignment csp)
   (if (is-complete assignment)
     (return-from backtrack assignment))
-  (let ((unassigned-var (varyable-with-min-remaining-values assignment csp)))
-    ; (print unassigned-var)
+  (let ((unassigned-var (varyable-with-min-remaining-values assignment)))
+    (print unassigned-var)
+    (print-assignment assignment)
+
     ; (for value in () do)
     ; don't forget to use (copy assignment)
     ))
