@@ -72,11 +72,25 @@
   (notany #'null (get-values (assigned-values self))))
 
 (defmethod is-consistent ((self assignment) csp)
-  (
-  ; get list of assigned variables
-  ; get list of constraints between assigned variables
-  ; for each constraint, ensure satisifed
-    ))
+  (notany #'null
+    ; for each constraint:
+    ; return T if not all variables in scope are assigned
+    ; return T if all variables assigned and predicate passes with values
+    ; return F if all variables assigned but predicate fails with values
+    (mapcar
+      (lambda (constraint)
+        (let*
+          ((values-for-varyable-in-scope
+            (mapcar
+              (lambda (varyable) (gethash varyable (assigned-values self)))
+              (scope constraint)))
+          (all-variables-in-scope-assigned
+            (notany #'null values-for-varyable-in-scope)))
+
+          (if all-variables-in-scope-assigned
+            (apply (predicate constraint) values-for-varyable-in-scope)
+            T)))
+      (constraints csp))))
 
 (defmethod is-solution ((self assignment) csp)
   (and
@@ -88,26 +102,34 @@
     :assigned-values (assigned-values self)
     :updated-domains (updated-domains self)))
 
+(defun print-hash (hash)
+  (loop for k being the hash-keys in hash using (hash-value v)
+    do (format t "~a => ~a~%" k v)))
+
 (defmethod print-assignment ((self assignment))
   (format t "~%assigned values:~%")
-  (loop for k being the hash-keys in (assigned-values self) using (hash-value v)
-    do (format t "~a => ~a~%" k v))
-
+  (print-hash (assigned-values self))
   (format t "~%updated domains:~%")
+  (print-hash (updated-domains self)))
 
-  (loop for k being the hash-keys in (updated-domains self) using (hash-value v)
-    do (format t "~a => ~a~%" k v)))
+(defmethod unassigned-varyables ((self assignment))
+  (loop for k being the hash-keys in (assigned-values self) using (hash-value v)
+    when (null v)
+    collect k))
 
 (defmethod varyable-with-min-remaining-values ((self assignment))
   (let*
     ((vars-to-domain-lengths
-      (my-map-hash
-        (lambda (varyable domain) (list varyable (length domain)))
-        (updated-domains self)))
+      (mapcar
+        (lambda (varyable) (list varyable (length (gethash varyable (updated-domains self)))))
+        (unassigned-varyables self)))
     (sorted-vars-to-domain-lengths
       (sort vars-to-domain-lengths
       (lambda (tuple-a tuple-b)
         (< (second tuple-a) (second tuple-b))))))
+    ; (print-hash (assigned-values self))
+    ; (print (unassigned-varyables self))
+    ; (print sorted-vars-to-domain-lengths)
     (first (first sorted-vars-to-domain-lengths))))
 
 (defmethod index-of-varyable ((self csp) varyable)
@@ -246,7 +268,7 @@
               domain))))
       (varyables self))))
 
-(defmethod make-csp-arc-consistent ((self assignment) csp)
+(defmethod make-arc-consistent ((self assignment) csp)
   ; arcs = scopes of binary constraints
   ; for each arc in arcs: revise ((get-varyable-by-name (first arc)) (get-varyable-by-name (second arc)))
   ; if revise's return value is true, push back on to queue
@@ -261,16 +283,24 @@
   (if (is-complete assignment)
     (return-from backtrack assignment))
   (let ((unassigned-var (varyable-with-min-remaining-values assignment)))
-    (print unassigned-var)
-    (print-assignment assignment)
-
-    ; (for value in () do)
-    ; don't forget to use (copy assignment)
-    ))
+    (loop for value in (gethash unassigned-var (updated-domains assignment)) do
+      (format t "~% Assigning ~a to ~a" value unassigned-var)
+      (let ((new-assignment (copy assignment)))
+        (setf (gethash unassigned-var (assigned-values new-assignment)) value)
+        ; constrain the domain to the chosen value
+        (setf (gethash unassigned-var (updated-domains new-assignment)) (list value))
+        (make-arc-consistent new-assignment csp)
+        ; TODO: check if dead end (any domains are empty given the new assignment)
+        (if (is-consistent new-assignment csp)
+          (let ((result (backtrack new-assignment csp)))
+            (if (not (null result))
+              (return-from backtrack result))))
+        ))
+    NIL))
 
 (defmethod backtracking-search ((self CSP))
   (let ((assignment (empty-assignment self)))
-    (make-csp-arc-consistent assignment self)
+    (make-arc-consistent assignment self)
     (backtrack assignment self)))
 
 (defparameter *two-four*
@@ -292,4 +322,4 @@
 ; then, apply the unary constraints on new intermediate variables:
 (make-csp-node-consistent *two-four*)
 
-(backtracking-search *two-four*)
+(print-assignment (backtracking-search *two-four*))
