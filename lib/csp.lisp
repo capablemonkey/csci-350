@@ -97,6 +97,12 @@
     (is-complete self)
     (is-consistent self csp)))
 
+(defmethod is-dead-end ((self assignment))
+  (some #'null
+    (mapcar
+      (lambda (varyable) (gethash varyable (updated-domains self)))
+      (unassigned-varyables self))))
+
 ; snippet from http://stackoverflow.com/a/26061176:
 (defun copy-hash-table (hash-table)
   (let ((ht (make-hash-table 
@@ -303,7 +309,7 @@
         (setf (gethash unassigned-var (updated-domains new-assignment)) (list value))
         (make-arc-consistent new-assignment csp)
         ; TODO: check if dead end (any domains are empty given the new assignment)
-        (if (is-consistent new-assignment csp)
+        (if (and (is-consistent new-assignment csp) (not (is-dead-end new-assignment)))
           (let ((result (backtrack new-assignment csp)))
             (if (not (null result))
               (return-from backtrack result))))
