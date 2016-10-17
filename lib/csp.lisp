@@ -42,7 +42,7 @@
 
 ; snippet from http://stackoverflow.com/a/26061176:
 (defun copy-hash-table (hash-table)
-  (let ((ht (make-hash-table 
+  (let ((ht (make-hash-table
              :test (hash-table-test hash-table)
              :rehash-size (hash-table-rehash-size hash-table)
              :rehash-threshold (hash-table-rehash-threshold hash-table)
@@ -51,6 +51,15 @@
        using (hash-value value)
        do (setf (gethash key ht) value)
        finally (return ht))))
+
+; inspired by snippet from http://stackoverflow.com/a/2087771/1108866:
+(defun k-permutations (n-list k)
+  (cond ((equal 0 k) (list nil))
+        ((null n-list) nil)
+        ((null (cdr n-list)) (list n-list))
+        (t (loop for element in n-list
+             append (mapcar (lambda (l) (cons element l))
+                            (k-permutations (remove element n-list) (- k 1)))))))
 
 ;
 ; Class definitions:
@@ -87,13 +96,16 @@
 ; ; TODO: account for bidirectional constraints.  all binary constraints currectly directional
 ; ; For now, we'll write bi-directional constraints as separate constraints for each way
 
-(defmethod create-n-ary-constraint ((self CSP) varyables predicate)
+(defmethod create-n-ary-constraint ((self CSP) varyables predicate &optional z-domain)
   ; create new variable called encap-var1-var2-var3-(length constraints) with domain = cartesian product of domains
   ; add unary constraint on variable
   ; add binary constraints between original variables and ith value of encapsulated variable
   (let* (
     (capsule (concat-string (append (list "encap") varyables)))
-    (capsule-domain (reduce #'cartesian-product (mapcar (lambda (varyable) (domain-for-varyable self varyable)) varyables)))
+    (capsule-domain
+      (if (null z-domain)
+        (reduce #'cartesian-product (mapcar (lambda (varyable) (domain-for-varyable self varyable)) varyables))
+        z-domain))
     (unary-capsule-constraint
       (make-instance 'constraint
         :scope (list capsule)
@@ -345,27 +357,31 @@
 ; Problem definition:
 ;
 
-(defparameter *two-four*
+(defparameter *pqrs*
   (make-instance 'CSP
-    :varyables '(tt w o ff u r c1 c2 c3)
+    :varyables '(p q r s tt w g h j c1 c2 c3 c4 c5)
     :default-domain '(0 1 2 3 4 5 6 7 8 9)
     :constraints (list
-      (make-instance 'constraint :scope '(r) :predicate #'evenp)
-      (make-instance 'constraint :scope '(ff) :predicate (lambda (ff) (> ff 0)))
-      (make-instance 'constraint :scope '(ff c3) :predicate (lambda (ff c3) (equal ff c3)))
-      (make-instance 'constraint :scope '(c3 ff) :predicate (lambda (c3 ff) (equal ff c3))))))
+      (make-instance 'constraint :scope '(q) :predicate #'evenp)
+      (make-instance 'constraint :scope '(w) :predicate (lambda (w) (> w 0)))
+      (make-instance 'constraint :scope '(w c5) :predicate (lambda (w c5) (equal w c5)))
+      (make-instance 'constraint :scope '(c5 w) :predicate (lambda (c5 w) (equal w c5))))))
 
 ; make node-consistent before applying n-ary constraints so their encapsulated variables aren't unneccesarily big
-(make-csp-node-consistent *two-four*)
-(create-n-ary-constraint *two-four* '(tt w o ff u r) #'all-diff)
-(create-n-ary-constraint *two-four* '(o r c1) (lambda (o r c1) (equal (+ o o) (+ r (* c1 10)))))
-(create-n-ary-constraint *two-four* '(w c1 u c2) (lambda (w c1 u c2) (equal (+ w w (* c1 10)) (+ u (* c2 10)))))
-(create-n-ary-constraint *two-four* '(tt c2 o ff) (lambda (tt c2 o ff) (equal (+ tt tt (* c2 10)) (+ o (* ff 10)))))
+(make-csp-node-consistent *pqrs*)
+
+(create-n-ary-constraint *pqrs* '(p q r s tt w g h j) #'all-diff (k-permutations (default-domain *pqrs*) 9))
+(create-n-ary-constraint *pqrs* '(tt q c1) (lambda (tt q c1) (equal (+ tt tt) (+ q (* c1 10)))))
+(create-n-ary-constraint *pqrs* '(s c1 j c2) (lambda (s c1 j c2) (equal (+ s s c1) (+ j (* c2 10)))))
+(create-n-ary-constraint *pqrs* '(r c2 tt c3) (lambda (r c2 tt c3) (equal (+ r r c2) (+ tt (* c3 10)))))
+(create-n-ary-constraint *pqrs* '(q c3 h c4) (lambda (q c3 h c4) (equal (+ q q c3) (+ h (* c4 10)))))
+(create-n-ary-constraint *pqrs* '(p w c4 g c5) (lambda (p w c4 g c5) (equal (+ p w c4) (+ g (* c5 10)))))
+
 
 ; then, apply the unary constraints on new intermediate variables:
-(make-csp-node-consistent *two-four*)
+(make-csp-node-consistent *pqrs*)
 
-(let ((result (backtracking-search *two-four*)))
+(let ((result (backtracking-search *pqrs*)))
   (if (not (null result))
     (print-assignment result)
     (print "no solution found")))
